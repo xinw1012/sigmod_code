@@ -253,7 +253,7 @@ def generate_data(tasks):
     print 'finish generate data for user specific model!'
     return (xs,ys,dy,ss,test_xs,test_ys,test_dy,test_ss)
 
-def generate_additional_data (tasks,model_1, model_2, model_3, overlap):
+def generate_additional_data (tasks,model_1, model_2, model_3, model_4, overlap):
     '''
     Generate new data for addtional tasks; overlap == 0 -> totally new task(only one); overlap == 1 -> totally add to existing tasks. 
     
@@ -275,7 +275,7 @@ def generate_additional_data (tasks,model_1, model_2, model_3, overlap):
     for sid, t in enumerate(tasks):
         if overlap == 0:
             sid = sid + max_ss + 1
-            print 'sid is ', sid
+            #print 'sid is ', sid
         elif overlap == 1:
             if len(tasks) <= (max_ss-min_ss+1):
                 #perm = np.random.permutation(max_ss-min_ss+1)[0:len(tasks)]
@@ -289,7 +289,7 @@ def generate_additional_data (tasks,model_1, model_2, model_3, overlap):
                 sid = perm[sid]
         elif overlap == 2:
             sid = max_ss
-            print 'sid is ', sid
+            #print 'sid is ', sid
         for i in range(len(t.y)):
             xs.append(t.X[i])
             ys.append(t.y[i])
@@ -307,6 +307,11 @@ def generate_additional_data (tasks,model_1, model_2, model_3, overlap):
                 model_3.segments[sid] = lg.Segment(sid, model_3.k,t.pref)
             model_3.segments[sid].add_example(t.X[i], t.y[i])
             
+            if sid not in model_4.segments:
+                model_4.segments[sid] = lg.Segment(sid, model_4.k,t.pref)
+            model_4.segments[sid].add_example(t.X[i], t.y[i])            
+
+            
         for i in range(len(t.test_y)):
             test_xs.append(t.test_X[i])
             test_ys.append(t.test_y[i])
@@ -320,6 +325,10 @@ def generate_additional_data (tasks,model_1, model_2, model_3, overlap):
     model_3.ys = ys
     model_3.ss = ss
     model_3.digitys = dy
+    
+    model_4.xs = xs
+    model_4.ys = ys
+    model_4.ss = ss
     return (test_xs,test_ys,test_ss)
 
 

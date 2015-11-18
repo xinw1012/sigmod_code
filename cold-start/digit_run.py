@@ -14,8 +14,10 @@ from sklearn import svm, ensemble
 ###### Load Data #################
 
 train_x, train_y = digits.load_digits("/Users/xinw/Documents/projects/velox-centipede/data", digits_filename = "mnist_train.csv")
+#train_x, train_y = digits.load_digits("", digits_filename = "mnist_train.csv")
 Z = digits.normalize_digits(train_x)
 test_x, test_y = digits.load_digits("/Users/xinw/Documents/projects/velox-centipede/data", digits_filename = "mnist_test.csv")
+#test_x, test_y = digits.load_digits("", digits_filename = "mnist_test.csv")
 test_Z = digits.normalize_digits(test_x)
 #Z = digits.fourier_project(train_x)
 
@@ -35,7 +37,6 @@ oracle_err = lg.seg_model_error_01(oracle_mtl, test_xs, test_ys, test_ts, num=20
 #oracle_mtl_errors.append(oracle_err)
 print "Initial Error OracleMTL: %f" % oracle_err
 
-
 svm_mtl = lg.UserDefineModel(xs,ys,dy,ss,'train-all','l2') # using the default value 
 svm_mtl.train_all_fs()
 svm_mtl.train_ws()
@@ -50,16 +51,22 @@ svm_err = lg.seg_model_error_01(svm_mtl1,test_xs,test_ys,test_ts)
 print 'Initial Error SVM_mtl-l1 ', svm_err
 svm_feature_errors1 = []
 
+d_mtl = lg.NonSharingModel(xs,ys,ss)
+d_mtl.train_ws()
+d_err = lg.seg_model_error_01(d_mtl,test_xs,test_ys,test_ts)
+print 'Initial Error non-sharing model ', d_err
+d_feature_errors = []
+print 
+
 ####### Cold-Start Experiment #################
 # number of points range from 2-20, step = 1
 task = digits.create_mtl_datasets(Z,train_y,nTasks=100,taskSize=30,testSize=40)
-test_xs,test_ys,test_ts = digits.generate_additional_data(task,oracle_mtl, svm_mtl, svm_mtl1,0)
+test_xs,test_ys,test_ts = digits.generate_additional_data(task,oracle_mtl, svm_mtl, svm_mtl1, d_mtl,0)
 
 
 iters = range(2,30)
 for i in iters:
     print 'cold-start: # of points trained: ', i
-
     
     oracle_mtl.train_ws(i)
     oracle_err = lg.seg_model_error_01(oracle_mtl, test_xs, test_ys, test_ts, num=20)
@@ -75,7 +82,12 @@ for i in iters:
     svm_err = lg.seg_model_error_01(svm_mtl1,test_xs,test_ys,test_ts)
     svm_feature_errors1.append(svm_err)
     print 'Testing Error of svm model-- l1 is ', svm_err
-
+    
+    d_mtl.train_ws(i)
+    d_err = lg.seg_model_error_01(d_mtl,test_xs,test_ys,test_ts)
+    d_feature_errors.append(d_err)
+    print 'Testing Error of non-sharing model is ', d_err
+    print    
    
 f = open('cold-start-experiment.txt','w')
 f.write('Oracle Model:\n')
@@ -103,6 +115,16 @@ f.write('\n')
 for t in svm_feature_errors1:
     f.write('\t'+str(t))
 f.write('\n')
+
+f.write('\n\n Non-sharing Model:\n# of points:')
+for i in iters:
+    f.write('\t'+str(i))
+f.write('\n')  
+
+for t in d_feature_errors:
+    f.write('\t'+str(t))
+f.write('\n')
+
 f.close()
 
 ## plot ###
@@ -110,6 +132,7 @@ fig,ax = plt.subplots()
 ax.plot(iters, oracle_mtl_errors, label='oracle')
 ax.plot(iters, svm_feature_errors, label = 'svm-l2')
 ax.plot(iters, svm_feature_errors1, label = 'svm-l1')
+ax.plot(iters, d_feature_errors, label = 'non-sharing')
 ax.set_xlabel('Size of the new task')
 ax.set_ylabel('Error rate')
 ax.set_title('Cold Start')

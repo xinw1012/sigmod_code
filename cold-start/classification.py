@@ -389,7 +389,7 @@ class LgSegmentModel:
 
 
 class UserDefineModel:
-    def __init__(self, xs, ys, digitys, ss, strategy,reg='l2',q=20, k=10):
+    def __init__(self, xs, ys, digitys, ss, strategy,reg='l2', sep='share', q=20, k=10):
 
         """
 
@@ -413,6 +413,7 @@ class UserDefineModel:
         self.perm = np.random.permutation(k)
         self.strategy = strategy
         self.reg = reg
+        self.sep = sep
         
         self.q = q  # number of points used for online updates
         self.points = 20
@@ -585,7 +586,49 @@ class UserDefineModel:
                 self.segments[ts[i]] = Segment(ts[i], self.k)
             self.segments[ts[i]].add_example(xs[i], ys[i])
         
+class NonSharingModel:
+    def __init__(self,xs,ys,ss,k=10):
+        self.xs = xs
+        self.ys = ys
+        self.ss = ss
+        self.k = k
+        
+        self.segments = {}
+        for i in range(len(self.ss)):
+            if self.ss[i] not in self.segments:
+                self.segments[self.ss[i]] = Segment(self.ss[i], self.k)
+            self.segments[self.ss[i]].add_example(self.xs[i], self.ys[i])
 
+           
+    def train_ws(self, i=None):
+        
+        for s in self.segments:
+            segment = self.segments[s]
+            start = datetime.now()
+            if i==None:
+                i = len(segment.ys)
+            perm = np.random.permutation(len(segment.ys))[0:i]
+            ys = [segment.ys[perm[m]] for m in range(i)]
+            while not ((0 in ys) and (1 in ys)):
+                perm = np.random.permutation(len(segment.ys))[0:i]
+                ys = [segment.ys[perm[m]] for m in range(i)]
+            xs = [segment.xs[perm[m]] for m in range(i)]
+            
+            new_ws = lm.LogisticRegression(fit_intercept=False)
+            new_ws.fit(xs, ys)
+            segment.model = new_ws
+            segment.ws = new_ws.coef_[0]
+        end = datetime.now()
+        
+        print 'Total Training time: %f.' % (end-start).total_seconds()
+        
+        
+    def predict(self, x, s, i=10):
+        y = self.segments[s].model.predict(x)
+        return y
+                  
+        
+        
 class Segment:
 
     def __init__(self, sid, k,pref=None):
@@ -637,6 +680,7 @@ def seg_model_error_01(model, xs, ys, ss, num = 10):
         if y_pred != y_true:
             wrong += 1
     return wrong/len(xs)
+
 
 def base_model_error_01(model, xs, ys):
     wrong = 0.0
